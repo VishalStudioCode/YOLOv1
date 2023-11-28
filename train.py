@@ -2,6 +2,9 @@
 import torch
 import torch.optim as optim
 import torch.utils.data as data
+from VOC import VocDataset
+from model import YoloV1
+from yolov1_loss import YoloLoss
 
 # Need to import YOLO model and YOLO loss function from other files
 # Karthik Selvaraj 11/6/2022 7:41 PM 
@@ -37,22 +40,25 @@ def main():
     # Intializes model from architecture file and uses SGD optimizer for backpropagation
     # Karthik Selvaraj 11/6/2022 7:47 PM
 
-    # model = YOLOv1()
-    # optimizer = optim.SGD(model.parameters(), lr=0.001)
-
+    model = YoloV1();
+    optimizer = optim.SGD(model.parameters(), lr=0.001);
+    loss = YoloLoss();
     # Sets total number of epochs and creates train/test data loaders
     # Karthik Selvaraj 11/6/2022 7:48 PM 
-    epochs = 100
+    epochs = 20;
 
-    train_loader = data.DataLoader()
-    test_loader = data.DataLoader()
+    train_dataset = VocDataset();
+
+    train_loader = data.DataLoader(train_dataset, batch_size=64, shuffle=True)
+    # test_loader = data.DataLoader()
+
+    print(f"Number of training images: {len(train_dataset)}");
 
     # Training loop that calls training function for specified number of epochs 
     # Karthik Selvaraj 11/6/2022 7:49 PM 
     for epoch in range(epochs):
-        # cur_loss = train(model, optimizer, train_loader, YOLO_loss) / len(train_loader)
-        # print(f'Epoch {epoch}: {cur_loss}')
-        pass
+        cur_loss = train(model, optimizer, train_loader, loss) / len(train_loader)
+        print(f'Epoch {epoch}: {cur_loss}')
 
 if __name__ == "__main__":
     main()

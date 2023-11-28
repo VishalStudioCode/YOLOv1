@@ -3,6 +3,8 @@ import torch
 import pathlib
 import cv2 as cv
 from torch.utils.data import Dataset
+import torchvision.transforms as transforms
+
 
 class VocDataset(Dataset):
     def __init__(self, image_size=448, file_path="data/voc2007.txt", grid_size=7, bb_box=2, cls=20) -> None:
@@ -10,6 +12,12 @@ class VocDataset(Dataset):
         self.S = grid_size;
         self.B = bb_box;
         self.C = cls;
+        # convert images to 448
+        mean_rgb = [122.67891434, 116.66876762, 104.00698793]
+        self.mean = np.array(mean_rgb, dtype=np.float32)
+
+        self.to_tensor = transforms.ToTensor();
+
         # grids coordinates 1D
         self.grids = torch.Tensor([i*(image_size/self.S) for i in range(self.S)]);
         with open(file_path, "r") as file:
@@ -71,9 +79,14 @@ class VocDataset(Dataset):
                 # classifier box
                 target[S1][S2][5*self.B + int(self.labels[idx][i])] = 1;
             counter[S1][S2] +=1;
-            # print(target[S1][S2])
+            # print(S1,"\t", S2)
+        # resize the image to 448
+        img = cv.resize(img, dsize=(self.image_size, self.image_size), interpolation=cv.INTER_LINEAR)
+        img = cv.cvtColor(img, cv.COLOR_BGR2RGB);
+        # normalize
+        img = (img - self.mean) / 255.0;
+        img = self.to_tensor(img);
 
-        
         return img, target;
 
     def segmentation(self, index):

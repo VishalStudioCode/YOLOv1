@@ -12,7 +12,7 @@ class YoloLoss(nn.Module):
     YOLOv1 loss function and its calculations
     """
 
-    def __init__(self, split_grid=7, num_boundbox=2, num_classes=10):
+    def __init__(self, split_grid=7, num_boundbox=2, num_classes=20):
         """
         :param split_grid: split size 7x7
         :param num_boundbox: number of boxes output for each cell
@@ -32,26 +32,26 @@ class YoloLoss(nn.Module):
         :param target:
         :return: loss
         """
-
+        target = target.reshape(-1,self.S, self.S, self.C + self.B*5)
         # We need to make sure the prediction is reshaped to SxSx20
         predictions = predictions.reshape(-1, self.S, self.S, self.C + self.B * 5)
 
-        iou_box1 = intersection_over_union(predictions[..., 11:15], target[..., 11:15])
-        iou_box2 = intersection_over_union(predictions[..., 16:20], target[..., 11:15])
-        ious = torch.cat([iou_box1.unsqueeze(0), iou_box2.unqueeze(0)], dim=0)
+        iou_box1 = intersection_over_union(predictions[..., 0:4], target[..., 0:4])
+        iou_box2 = intersection_over_union(predictions[..., 5:9], target[...,  0:4])
+        ious = torch.cat([iou_box1.unsqueeze(0), iou_box2.unsqueeze(0)], dim=0)
         iou_max, bestbox = torch.max(ious, dim=0)
 
-        existence = target[..., 10].unsqueeze(3)  # Iobj_i
+        existence = target[..., 4].unsqueeze(3)  # Iobj_i
 
         # Box coordinates part
         box_preds = existence * (
             (
-                    bestbox * predictions[..., 16:20]
-                    + (1 - bestbox) * predictions[..., 11:15]
+                    bestbox * predictions[..., 0:4]
+                    + (1 - bestbox) * predictions[..., 5:9]
             )
         )
 
-        box_targets = existence * target[..., 11:15]
+        box_targets = existence * target[..., 5:9]
 
         stability_offset = 1e-6
         box_preds[..., 2:4] = torch.sign(box_preds[..., 2:4]) * torch.sqrt(torch.abs(box_preds[..., 2:4]
@@ -66,28 +66,28 @@ class YoloLoss(nn.Module):
 
         # OBJECT LOSS
         prediction_box = (
-            bestbox * predictions[..., 15:16] + (1 - bestbox) * predictions[..., 10:11]
+            bestbox * predictions[..., 9:10] + (1 - bestbox) * predictions[..., 4:5]
         )
 
         obj_loss = self.mse(
             torch.flatten(existence * prediction_box),
-            torch.flatten((existence * target[..., 10:11]))
+            torch.flatten((existence * target[..., 4:5]))
         )
 
         # NO OBJECT LOSS
         no_obj_loss = self.mse(
-            torch.flatten((1-existence) * predictions[..., 10:11], start_dim=1),
-            torch.flatten((1-existence) * target[..., 10:11], start_dim=1)
+            torch.flatten((1-existence) * predictions[..., 4:5], start_dim=1),
+            torch.flatten((1-existence) * target[..., 4:5], start_dim=1)
         )
         no_obj_loss += self.mse(
-            torch.flatten((1 - existence) * predictions[..., 15:16], start_dim=1),
-            torch.flatten((1 - existence) * target[..., 10:11], start_dim=1)
+            torch.flatten((1 - existence) * predictions[..., 9:10], start_dim=1),
+            torch.flatten((1 - existence) * target[..., 4:5], start_dim=1)
         )
 
         # CLASS LOSS
         class_loss = self.mse(
-            torch.flatten(existence * predictions[..., :10], end_dim=-2),
-            torch.flatten(existence * target[..., 10], end_dim=-2)
+            torch.flatten(existence * predictions[..., 10:], end_dim=-2),
+            torch.flatten(existence * target[..., 10:], end_dim=-2)
         )
 
         loss = (

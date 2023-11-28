@@ -32,7 +32,7 @@ yolo_structure = iter([(3, 64, 7, 2, 3),
 
 class YoloV1(nn.Module):
     def __init__(self, split_grids=7, num_gridbboxes=2, num_classes=20):
-        super().__init__();
+        super(YoloV1, self).__init__();
         self.architecture = nn.Sequential();
         self.S = split_grids;
         self.B = num_gridbboxes;
@@ -67,12 +67,12 @@ class YoloV1(nn.Module):
                     self.architecture.append(nn.LeakyReLU(0.1));
         # fully connected layer
         # 7x7x1024 --> 4096
-        self.architecture.append(nn.Flatten(start_dim=0))
+        self.architecture.append(nn.Flatten(start_dim=1))
         self.architecture.append(nn.Linear(7*7*1024, 4096));
         self.architecture.append(nn.LeakyReLU(0.1));
         # 4096 --> 7x7x30 (S X S (5*B + C))
         self.architecture.append(nn.Linear(4096, (5*self.B + self.C)*self.S**2));
         # self.architecture.append(nn.Conv2d(1024, (5*self.B + self.C), 1, 1,0))
     def forward(self, x):
-        x = self.architecture(x).view(self.S, self.S, 5*self.B + self.C);
+        x = self.architecture(x).view(-1,self.S, self.S, 5*self.B + self.C);
         return x;
