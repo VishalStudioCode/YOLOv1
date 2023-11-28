@@ -74,7 +74,7 @@ class VocDataset(Dataset):
             # print(target[S1][S2])
 
         
-        return target;
+        return img, target;
 
     def segmentation(self, index):
         path = self.paths[index];
