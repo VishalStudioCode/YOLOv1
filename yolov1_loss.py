@@ -46,12 +46,12 @@ class YoloLoss(nn.Module):
         # Box coordinates part
         box_preds = existence * (
             (
-                    bestbox * predictions[..., 0:4]
-                    + (1 - bestbox) * predictions[..., 5:9]
+                    bestbox * predictions[..., 5:9]
+                    + (1 - bestbox) * predictions[..., 0:4]
             )
         )
 
-        box_targets = existence * target[..., 5:9]
+        box_targets = existence * target[..., 0:4]
 
         stability_offset = 1e-6
         box_preds[..., 2:4] = torch.sign(box_preds[..., 2:4]) * torch.sqrt(torch.abs(box_preds[..., 2:4]

@@ -18,18 +18,24 @@ class VocDataset(Dataset):
 
         self.to_tensor = transforms.ToTensor();
 
-        # grids coordinates 1D
-        self.grids = torch.Tensor([i*(image_size/self.S) for i in range(self.S)]);
+        # does not work because image is not 448 yet
+        # self.grids = torch.Tensor([i*(image_size/self.S) for i in range(self.S)]);
+        self.grid_x = torch.Tensor(self.S);
+        self.grid_y = torch.Tensor(self.S);
         with open(file_path, "r") as file:
             lines = file.readlines();
 
         self.boxes = [];
         self.labels = [];
         self.paths = [];
+        self.grids = [[]for i in range(len(lines))];
         for line in lines:
             split = line.strip().split();
             file_name = split[0];
             path = pathlib.Path("data/voc2007/VOCdevkit/VOC2007/JPEGImages") / file_name;
+            # some of these images in the txt don't exist
+            if(not path.exists()):
+                continue;
             self.paths.append(path);
             # number of bounding boxes depending on the img in dataset
             num_boxes = len(split[1:])//5;
@@ -51,6 +57,10 @@ class VocDataset(Dataset):
     def __getitem__(self, idx):
         path = self.paths[idx];
         img = cv.imread(str(path));
+        img_h, img_w = img.shape[:2]
+        for i in range(self.S):
+            self.grid_x[i] = img_w*i//self.S;
+            self.grid_y[i] = img_h*i//self.S;
         # tensor
         target = torch.zeros(self.S, self.S, self.B*5 + self.C);
         # [x1,y1, x2, y2] --> for n boxes
@@ -61,11 +71,11 @@ class VocDataset(Dataset):
         for i, box in enumerate(boxes):
             # get mid point
             x, y = (box[:2] + box[2:])/2
-            S1 = len(self.grids[x >= self.grids]) -1;
-            S2 = len(self.grids[y >= self.grids]) -1;
+            S1 = len(self.grid_x[x >= self.grid_x]) -1;
+            S2 = len(self.grid_y[y >= self.grid_y]) -1;
             # normalize depending on the grid
-            x /= (int(self.grids[x >= self.grids][-1]) + int(self.grids[1]));
-            y /= (int(self.grids[y >= self.grids][-1]) + int(self.grids[1]));
+            x /= (int(self.grid_x[x >= self.grid_x][-1]) + int(self.grid_x[1]));
+            y /= (int(self.grid_y[y >= self.grid_y][-1]) + int(self.grid_y[1]));
             # print(x,"\t",y);
             # get width and height (2nd Point - 1st Point)
             w, h = (box[2:] - box[:2])
@@ -75,6 +85,7 @@ class VocDataset(Dataset):
             # encode into tensor [S, S, 5*B + C]
             # encode x,y,w,h,conf
             if(counter[S1][S2] < self.B):
+                self.grids[idx].append((S1,S2));
                 target[S1][S2][counter[S1][S2]*5:(counter[S1][S2]+1)*5] = torch.Tensor([x,y,w,h,1]);
                 # classifier box
                 target[S1][S2][5*self.B + int(self.labels[idx][i])] = 1;
@@ -84,16 +95,17 @@ class VocDataset(Dataset):
         img = cv.resize(img, dsize=(self.image_size, self.image_size), interpolation=cv.INTER_LINEAR)
         img = cv.cvtColor(img, cv.COLOR_BGR2RGB);
         # normalize
-        img = (img - self.mean) / 255.0;
+        # img = (img - self.mean) / 255.0;
         img = self.to_tensor(img);
 
         return img, target;
+
 
     def segmentation(self, index):
         path = self.paths[index];
         img = cv.imread(str(path.absolute()));
         boxes = self.boxes[index];
-        labels = self.classes[index];
+        # labels = self.classes[index];
         for box in boxes:
             # tensor --> numpy
             # draw the bounding box on image

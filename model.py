@@ -70,6 +70,7 @@ class YoloV1(nn.Module):
         self.architecture.append(nn.Flatten(start_dim=1))
         self.architecture.append(nn.Linear(7*7*1024, 4096));
         self.architecture.append(nn.LeakyReLU(0.1));
+        self.architecture.append(nn.Dropout());
         # 4096 --> 7x7x30 (S X S (5*B + C))
         self.architecture.append(nn.Linear(4096, (5*self.B + self.C)*self.S**2));
         # self.architecture.append(nn.Conv2d(1024, (5*self.B + self.C), 1, 1,0))
